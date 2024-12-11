@@ -8,6 +8,6 @@ class Channel(Base):
     __tablename__ = "channels"
 
     id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True, nullable=False)
+    channel_name = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_monitored = Column(Boolean, default=True)
