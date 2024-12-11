@@ -6,6 +6,6 @@ class ChannelCreate(BaseModel):
 
 class ChannelResponse(BaseModel):
     id: int
-    username: str
+    channel_name: str
     
     model_config = ConfigDict(from_attributes=True)

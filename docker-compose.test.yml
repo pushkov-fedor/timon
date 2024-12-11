@@ -12,8 +12,11 @@ services:
       - POSTGRES_HOST=test-db
       - POSTGRES_PORT=5432
       - PYTHONPATH=/app
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
     depends_on:
-      - test-db
+      test-db:
+        condition: service_healthy
 
   test-db:
     image: postgres:15
@@ -21,3 +24,8 @@ services:
       - POSTGRES_DB=timon_test
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
