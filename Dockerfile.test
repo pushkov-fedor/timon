@@ -9,10 +9,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Создаем скрипт для ожидания базы данных
-COPY docker-entrypoint.sh /wait-for-db.sh
-RUN chmod +x /wait-for-db.sh
-
-# Запускаем тесты через entrypoint
-ENTRYPOINT ["/wait-for-db.sh"]
-CMD ["pytest", "tests/", "-v"] 
+# Ждем базу и запускаем тесты напрямую
+ENTRYPOINT ["bash", "-c", "\
+    echo 'Waiting for PostgreSQL...' && \
+    while ! nc -z $POSTGRES_HOST $POSTGRES_PORT; do sleep 0.1; done && \
+    echo 'PostgreSQL started' && \
+    echo 'Applying migrations...' && \
+    alembic upgrade head && \
+    echo 'Running tests...' && \
+    pytest tests/ -v \
+"] 
