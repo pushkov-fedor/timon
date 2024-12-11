@@ -1,0 +1,29 @@
+# ./docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+
+  rsshub:
+    image: diygod/rsshub
+    ports:
+      - "1200:1200"
+
+volumes:
+  postgres_data:
