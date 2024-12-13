@@ -8,3 +8,5 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 pytest==7.4.3
 httpx==0.25.1  # для TestClient 
+requests==2.31.0
+beautifulsoup4==4.12.2

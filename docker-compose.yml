@@ -1,5 +1,4 @@
 # ./docker-compose.yml
-version: '3.8'
 
 services:
   app:
@@ -12,6 +11,7 @@ services:
       - .env
     depends_on:
       - db
+      - huginn
 
   db:
     image: postgres:15
@@ -24,6 +24,19 @@ services:
     image: diygod/rsshub
     ports:
       - "1200:1200"
+
+  huginn:
+    image: huginn/huginn
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - SEED_USERNAME=${HUGINN_ADMIN_USERNAME}
+      - SEED_PASSWORD=${HUGINN_ADMIN_PASSWORD}
+      - SEED_EMAIL=${HUGINN_ADMIN_EMAIL}
+    depends_on:
+      - db
 
 volumes:
   postgres_data:

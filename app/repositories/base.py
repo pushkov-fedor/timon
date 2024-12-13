@@ -22,3 +22,8 @@ class BaseRepository(Generic[ModelType]):
         self.db.commit()
         self.db.refresh(obj)
         return obj
+
+    def delete(self, obj: ModelType) -> None:
+        """Delete object from database."""
+        self.db.delete(obj)
+        self.db.commit()
