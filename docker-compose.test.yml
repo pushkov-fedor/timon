@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   test:
     build: 
@@ -7,23 +5,25 @@ services:
       dockerfile: Dockerfile.test
     volumes:
       - .:/app
-    environment:
-      - POSTGRES_DB=timon_test
-      - POSTGRES_HOST=test-db
-      - POSTGRES_PORT=5432
-      - PYTHONPATH=/app
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
-    depends_on:
-      test-db:
-        condition: service_healthy
-
-  test-db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=timon_test
     env_file:
       - .env
+    environment:
+      # Переопределяем имя базы данных для тестов
+      - POSTGRES_DB=timon_test
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/timon_test
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    env_file:
+      - .env
+    environment:
+      # Переопределение для тестовой базы данных
+      - POSTGRES_DB=timon_test
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
