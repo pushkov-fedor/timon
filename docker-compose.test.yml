@@ -8,24 +8,31 @@ services:
     env_file:
       - .env
     environment:
-      # Переопределяем имя базы данных для тестов
       - POSTGRES_DB=timon_test
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/timon_test
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    networks:
+      - test-network
 
   db:
     image: postgres:15
     env_file:
       - .env
     environment:
-      # Переопределение для тестовой базы данных
       - POSTGRES_DB=timon_test
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
