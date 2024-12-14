@@ -10,3 +10,8 @@ class ChannelRepository(BaseRepository[Channel]):
 
     def get_by_channel_name(self, channel_name: str) -> Channel | None:
         return self.db.query(Channel).filter(Channel.channel_name == channel_name).first()
+
+    def update(self, channel: Channel) -> Channel:
+        self.db.commit()
+        self.db.refresh(channel)
+        return channel
