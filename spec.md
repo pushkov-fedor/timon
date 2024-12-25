@@ -18,7 +18,7 @@
 3. Timon обращается к RSSHub по адресу `http://rsshub:1200/telegram/channel/<channel_username>?limit=100` для получения RSS ленты. Вручную ничего создавать в RSSHub не нужно — RSSHub автоматически генерирует ленту по запросу.
 4. Timon через Huginn API (с использованием CSRF-токена) создаёт:
    - RSS Agent для мониторинга RSS-ленты канала
-   - Webhook Agent для отправки данных в Timon
+   - Post Agent для отправки данных в Timon
    - Связь между агентами
    Процесс создания включает:
    - Получение CSRF-токена с помощью GET запроса к странице агентов
@@ -43,13 +43,13 @@
 - **Telegram-канал**: Источник информации.
 - **RSSHub**: Автоматически генерирует RSS ленту канала по запросу (никакой ручной настройки).
 - **Huginn**:  
-  - RSS Agent читает RSS-ленту.
-  - Webhook Agent шлёт POST в Timon при новых постах.
+  - RSS Agent читает RSS-ленту
+  - Post Agent шлёт POST в Timon при новых постах
 - **Timon (FastAPI)**:
-  - `POST /channels`: Регистрация канала и `callback_url`.
-  - `POST /webhook/rss`: Приём новых постов от Huginn, парсинг `description`, пересылка на `callback_url`.
+  - `POST /channels`: Регистрация канала и `callback_url`
+  - `POST /webhook/rss`: Приём новых постов от Huginn, парсинг `description`, пересылка на `callback_url`
 - **PostgreSQL**:
-  - Таблица `channels`: хранит `username`, `callback_url`, `huginn_rss_agent_id`, `huginn_webhook_agent_id`.
+  - Таблица `channels`: хранит `username`, `callback_url`, `huginn_rss_agent_id`, `huginn_post_agent_id`
   - Посты не хранятся.
 - **Huginn API Интеграция**:
   - Аутентификация через `/users/sign_in`
@@ -96,38 +96,26 @@
 }
 ```
 
-**Huginn Agent Creation (RSS)**:
+**Huginn Agent Creation (Post)**:
 ```json
 {
   "authenticity_token": "csrf_token",
   "agent": {
-    "type": "Agents::RssAgent",
-    "name": "RSS Monitor - channel_username",
-    "schedule": "every_1h",
-    "options": {
-      "expected_update_period_in_days": "2",
-      "clean": "false",
-      "url": ["http://rsshub:1200/telegram/channel/channel_username"]
-    }
-  },
-  "commit": "Save"
-}
-```
-
-**Huginn Agent Creation (Webhook)**:
-```json
-{
-  "authenticity_token": "csrf_token",
-  "agent": {
-    "type": "Agents::WebhookAgent",
-    "name": "Webhook - channel_username",
+    "type": "Agents::PostAgent",
+    "name": "Post - channel_username",
     "payload_mode": "merge",
     "options": {
-      "secret": "generated_secret",
+      "post_url": "http://timon/webhook/rss",
       "expected_receive_period_in_days": "2",
-      "payload_path": ".",
+      "content_type": "json",
       "method": "post",
-      "url": "http://timon/webhook/rss"
+      "payload": {
+        "title": "{{title}}",
+        "link": "{{url}}",
+        "guid": "{{guid}}",
+        "description": "{{description}}",
+        "published": "{{published}}"
+      }
     }
   },
   "commit": "Save"
@@ -173,8 +161,8 @@
 ### Спринт 2: Динамическая Интеграция с Huginn
 
 **Цели:**
-- При добавлении канала автоматически создавать RSS и Webhook агентов в Huginn через его API.
-- Связывать RSS Agent с Webhook Agent.
+- При добавлении канала автоматически создавать RSS и Post агентов в Huginn через его API
+- Связывать RSS Agent с Post Agent
 
 **Задачи:**
 1. Реализовать класс HuginnClient для работы с API:
@@ -184,7 +172,7 @@
 2. После `POST /channels`:
    - Получить CSRF-токен
    - Создать RSS Agent с правильными параметрами
-   - Создать Webhook Agent с настроенным URL
+   - Создать Post Agent с настроенным URL и форматированием payload
    - Связать агентов
 3. Сохранить ID созданных агентов в БД
 4. Добавить обработку ошибок при работе с Huginn API
