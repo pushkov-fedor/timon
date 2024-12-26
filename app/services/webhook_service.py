@@ -86,7 +86,9 @@ class WebhookService:
                 "published_at": post.published_at.isoformat(),
                 "text": post.text,
                 "links": [str(link) for link in post.links],  # Convert list of HttpUrl to strings
-                "images": [str(image) for image in post.images]  # Convert list of HttpUrl to strings
+                "images": [str(image) for image in post.images],  # Convert list of HttpUrl to strings
+                "videos": [str(video) for video in post.videos],  # Convert list of HttpUrl to strings
+                "raw_content": post.raw_content
             }
 
             response = await self.http_client.post(
