@@ -1,8 +1,13 @@
+# app/api/deps.py
+
+from typing import AsyncGenerator
+
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.services.channel_service import ChannelService
+from app.services.webhook_service import WebhookService
 
 
 def get_db_session() -> Session:
@@ -14,3 +19,9 @@ def get_db_session() -> Session:
 
 def get_channel_service(db: Session = Depends(get_db_session)) -> ChannelService:
     return ChannelService(db)
+
+async def get_webhook_service(
+    db: Session = Depends(get_db_session)
+) -> AsyncGenerator[WebhookService, None]:
+    async with WebhookService(db) as service:
+        yield service

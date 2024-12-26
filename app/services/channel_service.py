@@ -22,7 +22,19 @@ class ChannelService:
         channel_name = self._extract_channel_name_from_url(channel.channel_url)
         self._check_channel_exists(channel_name)
         
-        new_channel = Channel(channel_name=channel_name)
+        new_channel = Channel(
+            channel_name=channel_name,
+            callback_url=str(channel.callback_url),
+            is_monitored=True
+        )
+        
+        # Проверка наличия callback_url
+        if not new_channel.callback_url:
+            raise HTTPException(
+                status_code=400,
+                detail="callback_url is required"
+            )
+        
         self.repository.create(new_channel)
         
         try:

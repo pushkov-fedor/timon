@@ -5,10 +5,12 @@ from pydantic import BaseModel, ConfigDict, HttpUrl
 
 class ChannelCreate(BaseModel):
     channel_url: HttpUrl
+    callback_url: HttpUrl
 
 class ChannelResponse(BaseModel):
     id: int
     channel_name: str
+    callback_url: str
     huginn_rss_agent_id: Optional[int] = None
     huginn_post_agent_id: Optional[int] = None
     
