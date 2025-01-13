@@ -18,7 +18,10 @@ class TestChannelService:
         assert channel_name == "test_channel"
 
     def test_create_channel_calls_huginn_client(self, channel_service: ChannelService, mock_huginn_client: MagicMock, db_session: Session):
-        channel_data = ChannelCreate(channel_url="https://t.me/test_channel")
+        channel_data = ChannelCreate(
+            channel_url="https://t.me/test_channel",
+            callback_url="https://example.com/webhook"
+        )
         channel = channel_service.create_channel(channel_data)
 
         assert channel.channel_name == "test_channel"
@@ -27,7 +30,10 @@ class TestChannelService:
         mock_huginn_client.link_agents.assert_called_once()
 
     def test_create_duplicate_channel(self, channel_service: ChannelService, mock_huginn_client: MagicMock, db_session: Session):
-        channel_data = ChannelCreate(channel_url="https://t.me/test_channel")
+        channel_data = ChannelCreate(
+            channel_url="https://t.me/test_channel",
+            callback_url="https://example.com/webhook"
+        )
         channel_service.create_channel(channel_data)
 
         with pytest.raises(HTTPException) as exc:
@@ -36,9 +42,10 @@ class TestChannelService:
         assert exc.value.detail == "Channel already exists"
 
     def test_delete_channel_calls_huginn_client(self, channel_service: ChannelService, mock_huginn_client: MagicMock, db_session: Session):
-        # Предполагается, что канал уже создан
+        # Создаем канал
         channel = Channel(
             channel_name="test_channel",
+            callback_url="https://example.com/webhook",
             is_monitored=True,
             huginn_rss_agent_id=1,
             huginn_post_agent_id=2
@@ -50,13 +57,16 @@ class TestChannelService:
 
         mock_huginn_client.delete_agent.assert_any_call(1)
         mock_huginn_client.delete_agent.assert_any_call(2)
-        mock_huginn_client.delete_agent.assert_called_with(2)  # Проверяем, что оба агента удалены
+        assert mock_huginn_client.delete_agent.call_count == 2
 
     def test_create_channel_huginn_failure(self, channel_service: ChannelService, mock_huginn_client: MagicMock, db_session: Session):
         # Настраиваем HuginnClient так, чтобы create_rss_agent выбрасывал исключение
         mock_huginn_client.create_rss_agent.side_effect = Exception("Huginn error")
 
-        channel_data = ChannelCreate(channel_url="https://t.me/test_channel")
+        channel_data = ChannelCreate(
+            channel_url="https://t.me/test_channel",
+            callback_url="https://example.com/webhook"
+        )
         with pytest.raises(Exception) as exc:
             channel_service.create_channel(channel_data)
         assert str(exc.value) == "Huginn error"
@@ -65,6 +75,7 @@ class TestChannelService:
         # Создаем канал с существующими агентами
         channel = Channel(
             channel_name="test_channel",
+            callback_url="https://example.com/webhook",
             is_monitored=True,
             huginn_rss_agent_id=1,
             huginn_post_agent_id=2
