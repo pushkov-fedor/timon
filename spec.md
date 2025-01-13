@@ -202,6 +202,76 @@
 **Результат Спринта 3:**
 - Новые посты автоматически пересылаются на вебхук пользователя с уже разобранным содержимым.
 
+### Спринт 4: Поддержка Множественных Подписок
+
+**Цели:**
+- Обеспечить возможность подписки нескольких пользователей на один канал
+- Реорганизовать структуру БД для корректной работы с подписками
+- Оптимизировать работу с Huginn агентами
+
+**Изменения в структуре БД:**
+
+1. Таблица `channels`:
+```sql
+CREATE TABLE channels (
+    id SERIAL PRIMARY KEY,
+    channel_name VARCHAR NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_monitored BOOLEAN DEFAULT TRUE,
+    huginn_rss_agent_id INTEGER,
+    huginn_post_agent_id INTEGER  -- один Post Agent на канал
+);
+```
+
+2. Новая таблица `subscriptions`:
+```sql
+CREATE TABLE subscriptions (
+    id SERIAL PRIMARY KEY,
+    channel_id INTEGER REFERENCES channels(id),
+    callback_url VARCHAR NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(channel_id, callback_url)
+);
+```
+
+**Флоу работы:**
+1. При создании первой подписки на канал:
+   ```
+   1. Создаём канал
+   2. Создаём RSS Agent
+   3. Создаём один Post Agent
+   4. Связываем RSS Agent -> Post Agent -> наш webhook
+   5. Создаём запись в subscriptions
+   ```
+
+2. При создании последующих подписок:
+   ```
+   1. Находим существующий канал
+   2. Создаём только запись в subscriptions
+   ```
+
+3. При получении webhook от Post Agent:
+   ```
+   1. Определяем канал из данных поста
+   2. Находим все активные подписки канала
+   3. Отправляем данные на все callback_url
+   ```
+
+4. При отписке:
+   ```
+   1. Деактивируем подписку
+   2. Если нет активных подписок:
+      - Удаляем RSS Agent и Post Agent
+      - Помечаем канал как не мониторящийся
+   ```
+
+**Преимущества:**
+1. Оптимальное использование Huginn агентов (один RSS + один Post на канал)
+2. Правильная структура БД с отдельной таблицей подписок
+3. Простое масштабирование
+4. Чёткое разделение данных каналов и подписок
+
 ------------------------------------------
 
 ## Итог
