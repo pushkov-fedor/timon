@@ -12,7 +12,10 @@ class TestChannelsAPI:
     def test_create_channel(self, client: TestClient, db_session: Session, mock_huginn_client: MagicMock):
         response = client.post(
             "/channels/",
-            json={"channel_url": "https://t.me/test_channel"}
+            json={
+                "channel_url": "https://t.me/test_channel",
+                "callback_url": "https://example.com/webhook"
+            }
         )
         assert response.status_code == 200
         data = response.json()
@@ -28,14 +31,20 @@ class TestChannelsAPI:
         # Создаем первый канал
         response = client.post(
             "/channels/",
-            json={"channel_url": "https://t.me/test_channel"}
+            json={
+                "channel_url": "https://t.me/test_channel",
+                "callback_url": "https://example.com/webhook"
+            }
         )
         assert response.status_code == 200
 
         # Пытаемся создать дубликат
         response = client.post(
             "/channels/",
-            json={"channel_url": "https://t.me/test_channel"}
+            json={
+                "channel_url": "https://t.me/test_channel",
+                "callback_url": "https://example.com/webhook2"
+            }
         )
         assert response.status_code == 400
         assert response.json()["detail"] == "Channel already exists"
@@ -56,7 +65,10 @@ class TestChannelsAPI:
         # Создаем канал
         response = client.post(
             "/channels/",
-            json={"channel_url": "https://t.me/test_channel"}
+            json={
+                "channel_url": "https://t.me/test_channel",
+                "callback_url": "https://example.com/webhook"
+            }
         )
         assert response.status_code == 200
         channel_id = response.json()["id"]
@@ -66,8 +78,8 @@ class TestChannelsAPI:
         assert response.status_code == 204
 
         # Проверяем, что методы удаления агентов были вызваны
-        mock_huginn_client.delete_agent.assert_any_call(1)  # Assuming huginn_rss_agent_id=1
-        mock_huginn_client.delete_agent.assert_any_call(2)  # Assuming huginn_post_agent_id=2
+        mock_huginn_client.delete_agent.assert_any_call(1)
+        mock_huginn_client.delete_agent.assert_any_call(2)
         assert mock_huginn_client.delete_agent.call_count == 2
 
     def test_delete_nonexistent_channel(self, client: TestClient):

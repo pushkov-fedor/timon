@@ -9,6 +9,7 @@ class Channel(Base):
 
     id = Column(Integer, primary_key=True)
     channel_name = Column(String, unique=True, nullable=False)
+    callback_url = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_monitored = Column(Boolean, default=True)
     huginn_rss_agent_id = Column(Integer, nullable=True)

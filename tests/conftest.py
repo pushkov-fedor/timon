@@ -12,6 +12,8 @@ from app.main import app
 from app.repositories.channel_repository import ChannelRepository
 from app.services.channel_service import ChannelService
 from app.services.huginn_client import HuginnClient
+from app.services.webhook_service import WebhookService
+from tests.factories.post import create_test_html_content, create_test_post_webhook
 
 
 @pytest.fixture(autouse=True)
@@ -78,3 +80,44 @@ def channel_repository(db_session: Session) -> ChannelRepository:
 @pytest.fixture
 def channel_service(db_session: Session) -> ChannelService:
     return ChannelService(db_session)
+
+
+@pytest.fixture
+def mock_http_client() -> MagicMock:
+    """Mock HTTP client for testing webhook callbacks."""
+    mock = MagicMock()
+    mock.post.return_value = MagicMock(
+        status_code=200,
+        text="OK"
+    )
+    return mock
+
+
+@pytest.fixture
+def webhook_service(db_session: Session, mock_http_client: MagicMock) -> WebhookService:
+    """Create WebhookService instance with mocked HTTP client for testing."""
+    service = WebhookService(db_session)
+    service.http_client = mock_http_client
+    return service
+
+
+@pytest.fixture
+def sample_html_content() -> str:
+    """Return sample HTML content similar to a Telegram channel post."""
+    return create_test_html_content(
+        text="Test post content",
+        links=["https://example.com"],
+        images=["https://example.com/image.jpg"],
+        videos=["https://example.com/video.mp4"]
+    )
+
+
+@pytest.fixture
+def sample_webhook_post() -> dict:
+    """Return sample webhook post data."""
+    post = create_test_post_webhook(
+        title="Test Channel Post",
+        url="https://t.me/test_channel/123",
+        description=create_test_html_content()
+    )
+    return post.model_dump()

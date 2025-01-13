@@ -170,22 +170,25 @@ class HuginnClient:
         """Create a Post agent that will send events to the webhook URL"""
         logger.info(f"Creating Post agent for channel: {channel_username}")
         
+        webhook_url = f"{settings.APP_HOST}/webhook/rss"
+        logger.info(f"Configuring Post agent to send webhooks to: {webhook_url}")
+        
         payload = {
             "agent": {
                 "type": "Agents::PostAgent",
                 "name": f"Post Agent - {channel_username}",
                 "payload_mode": "merge",
                 "options": {
-                    "post_url": "https://webhook.site/65b00dcc-42ea-41da-ad79-a79cdedb4fd3",
+                    "post_url": webhook_url,
                     "expected_receive_period_in_days": "2",
                     "content_type": "json",
                     "method": "post",
                     "payload": {
-                        "text": "{{ content }}",
                         "title": "{{ title }}",
-                        "link": "{{ link }}",
-                        "published_at": "{{ published_at }}",
-                        "channel": "{{ channel }}"
+                        "link": "{{ url }}",
+                        "guid": "{{ guid }}",
+                        "description": "{{ description }}",
+                        "published": "{{ published }}"
                     },
                     "headers": {
                         "Content-Type": "application/json"
