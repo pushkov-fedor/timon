@@ -9,12 +9,22 @@ from pydantic import BaseModel, Field, HttpUrl
 class PostWebhook(BaseModel):
     """Schema for incoming webhook data from Huginn"""
     id: str
-    url: str  # This is what we'll use instead of 'link'
+    url: str
     title: str
     description: str
     content: str
-    date_published: str
+    date_published: str  # This is what Huginn sends
     last_updated: str
+
+    @property
+    def guid(self) -> str:
+        """Alias for id to maintain compatibility"""
+        return self.id
+
+    @property
+    def published(self) -> str:
+        """Alias for date_published to maintain compatibility"""
+        return self.date_published
 
 class ParsedPost(BaseModel):
     """Schema for parsed post data to be sent to callback URL"""
