@@ -113,8 +113,8 @@ class ChannelService:
         
         self.channel_repository.delete(channel)
 
-    async def _check_channel_availability(self, channel_name: str) -> None:
-        """Проверяет доступность канала через RSSHub напрямую"""
+    async def _check_channel_availability(self, channel_name: str) -> tuple[str, str]:
+        """Проверяет доступность канала через RSSHub напрямую и возвращает title и photo_url"""
         rsshub_url = f"http://rsshub:1200/telegram/channel/{channel_name}"
         
         try:
@@ -134,6 +134,18 @@ class ChannelService:
                     status_code=400,
                     detail=f"Failed to verify channel: HTTP {response.status_code}"
                 )
+
+            # Parse XML response
+            from xml.etree import ElementTree as ET
+            root = ET.fromstring(response.text)
+            
+            # Extract title and photo_url
+            channel_elem = root.find('channel')
+            title = channel_elem.find('title').text.replace(' - Telegram Channel', '')
+            image_elem = channel_elem.find('image')
+            photo_url = image_elem.find('url').text if image_elem is not None else None
+            
+            return title, photo_url
                 
         except TimeoutException:
             raise HTTPException(
@@ -153,26 +165,15 @@ class ChannelService:
                 detail="Failed to verify channel accessibility"
             )
 
-    async def create_subscription(
-        self, 
-        subscription: SubscriptionCreate
-    ) -> SubscriptionResponse:
-        logger.info(
-            "Creating subscription",
-            extra={
-                "channel_url": str(subscription.channel_url),
-                "callback_url": str(subscription.callback_url)
-            }
-        )
-        
+    async def create_subscription(self, subscription: SubscriptionCreate) -> SubscriptionResponse:
         channel_name = self._extract_channel_name_from_url(subscription.channel_url)
         logger.debug(f"Extracted channel name: {channel_name}")
         
-        # Проверяем доступность канала до создания чего-либо
-        await self._check_channel_availability(channel_name)
-        
-        # Если канал доступен, продолжаем создание подписки
+        # Check if channel exists
         channel = self.channel_repository.get_by_channel_name(channel_name)
+        
+        # Get channel info from RSS feed
+        channel_title, channel_photo_url = await self._check_channel_availability(channel_name)
         
         if not channel:
             logger.info(f"Channel {channel_name} not found, creating new")
@@ -181,91 +182,6 @@ class ChannelService:
                 is_monitored=True
             )
             self.channel_repository.create(channel)
-            
-            try:
-                logger.info(f"Creating Huginn agents for channel {channel_name}")
-                rss_agent_id = self.huginn_client.create_rss_agent(channel_name)
-                post_agent_id = self.huginn_client.create_post_agent(channel_name)
-                
-                # Проверяем доступность канала
-                try:
-                    logger.info("Testing RSS agent connectivity")
-                    status = self.huginn_client.get_agent_status(rss_agent_id)
-                    if "error" in status and "503" in str(status["error"]):
-                        logger.error(
-                            "Channel appears to be private or inaccessible",
-                            extra={"channel_name": channel_name}
-                        )
-                        # Удаляем созданные агенты
-                        self.huginn_client.delete_agent(rss_agent_id)
-                        self.huginn_client.delete_agent(post_agent_id)
-                        
-                        # Удаляем канал
-                        self.channel_repository.delete(channel)
-                        
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Channel is private or inaccessible"
-                        )
-                except Exception as e:
-                    logger.error(
-                        "Error checking channel accessibility",
-                        extra={
-                            "channel_name": channel_name,
-                            "error": str(e)
-                        }
-                    )
-                    # Удаляем созданные агенты и канал
-                    self.huginn_client.delete_agent(rss_agent_id)
-                    self.huginn_client.delete_agent(post_agent_id)
-                    self.channel_repository.delete(channel)
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Failed to verify channel accessibility"
-                    )
-
-                # Продолжаем только если канал доступен
-                logger.info("Linking Huginn agents")
-                self.huginn_client.link_agents(rss_agent_id, post_agent_id)
-                
-                # Check links
-                links = self.huginn_client.get_agent_links(rss_agent_id)
-                logger.info(f"RSS Agent links: {links}")
-                
-                # RSS agent should send events to Post agent
-                if post_agent_id not in links["receivers"]:
-                    logger.warning(f"Post agent {post_agent_id} not found in RSS agent receivers!")
-                
-                # Post agent should receive events from RSS
-                post_links = self.huginn_client.get_agent_links(post_agent_id)
-                if rss_agent_id not in post_links["sources"]:
-                    logger.warning(f"RSS agent {rss_agent_id} not found in Post agent sources!")
-                
-                # Start agents
-                self.huginn_client.start_agent(rss_agent_id)
-                
-                # Check status
-                rss_status = self.huginn_client.get_agent_status(rss_agent_id)
-                post_status = self.huginn_client.get_agent_status(post_agent_id)
-                
-                logger.info(f"RSS Agent status: {rss_status}")
-                logger.info(f"Post Agent status: {post_status}")
-                
-                channel.huginn_rss_agent_id = rss_agent_id
-                channel.huginn_post_agent_id = post_agent_id
-                self.channel_repository.update(channel)
-                logger.info("Successfully created and linked Huginn agents")
-                
-            except Exception as e:
-                logger.error(
-                    f"Failed to create Huginn agents for channel {channel_name}",
-                    exc_info=True
-                )
-                self.channel_repository.delete(channel)
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to create Huginn agents: {str(e)}"
-                )
         
         # Check if subscription already exists
         existing_sub = self.subscription_repository.get_by_channel_and_callback(
@@ -295,6 +211,8 @@ class ChannelService:
                 }
             )
             existing_sub.is_active = True
+            existing_sub.title = channel_title
+            existing_sub.photo_url = channel_photo_url
             self.subscription_repository.update(existing_sub)
             return SubscriptionResponse.model_validate(existing_sub)
         
@@ -309,7 +227,9 @@ class ChannelService:
         new_sub = Subscription(
             channel_id=channel.id,
             callback_url=str(subscription.callback_url),
-            is_active=True
+            is_active=True,
+            title=channel_title,
+            photo_url=channel_photo_url
         )
         self.subscription_repository.create(new_sub)
         

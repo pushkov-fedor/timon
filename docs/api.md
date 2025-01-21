@@ -32,7 +32,9 @@ Timon API позволяет настраивать мониторинг Telegra
     "channel_id": 1,
     "callback_url": "https://your-service.com/webhook",
     "created_at": "2024-03-14T12:00:00Z",
-    "is_active": true
+    "is_active": true,
+    "channel_title": "Example Channel",
+    "channel_photo_url": "https://t.me/example_channel/photo.jpg"
 }
 ```
 
