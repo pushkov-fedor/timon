@@ -78,7 +78,7 @@ class WebhookService:
             return datetime.utcnow()
 
     @async_retry(retries=3, delay=1.0, backoff=2.0, exceptions=(httpx.HTTPError,))
-    async def _send_to_callback(self, callback_url: str, post: ParsedPost) -> None:
+    async def _send_to_callback(self, callback_url: str, post: dict) -> None:
         """Send parsed post to callback URL"""
         try:
             # Конвертируем Pydantic модель в dict и преобразуем HttpUrl в строки
@@ -108,6 +108,11 @@ class WebhookService:
                     detail=f"Callback request failed: {response.text}"
                 )
                 
+        except (httpx.ConnectError, httpx.ReadTimeout) as e:
+            # Только логируем ошибки подключения, не поднимаем исключение
+            logger.error(f"Error sending callback request: {str(e)}")
+            logger.error("Failed to send to callback")
+            return
         except Exception as e:
             logger.error(f"Error sending callback request: {str(e)}")
             raise HTTPException(

@@ -170,6 +170,7 @@ class HuginnClient:
         """Create a Post agent that will send events to the webhook URL"""
         logger.info(f"Creating Post agent for channel: {channel_username}")
         
+        # Изменяем webhook_url чтобы использовать порт 8001
         webhook_url = f"{settings.APP_HOST}/webhook/rss"
         logger.info(f"Configuring Post agent to send webhooks to: {webhook_url}")
         
@@ -179,7 +180,7 @@ class HuginnClient:
                 "name": f"Post Agent - {channel_username}",
                 "payload_mode": "merge",
                 "options": {
-                    "post_url": webhook_url,
+                    "post_url": webhook_url,  # Теперь будет использовать http://app:8001/webhook/rss
                     "expected_receive_period_in_days": "2",
                     "content_type": "json",
                     "method": "post",
