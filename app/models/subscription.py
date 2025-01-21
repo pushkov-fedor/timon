@@ -11,4 +11,6 @@ class Subscription(Base):
     channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
     callback_url = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    is_active = Column(Boolean, default=True) 
+    is_active = Column(Boolean, default=True)
+    title = Column(String(255), nullable=True)
+    photo_url = Column(String(1024), nullable=True) 
