@@ -4,7 +4,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - .:/app
     env_file:
@@ -28,7 +28,7 @@ services:
   huginn:
     image: huginn/huginn
     ports:
-      - "3000:3000"
+      - "3001:3000"
     env_file:
       - .env
     environment:

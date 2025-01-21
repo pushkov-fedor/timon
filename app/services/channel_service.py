@@ -182,6 +182,40 @@ class ChannelService:
                 is_monitored=True
             )
             self.channel_repository.create(channel)
+            
+            # Create Huginn agents for new channel
+            try:
+                # Create agents
+                rss_agent_id = self.huginn_client.create_rss_agent(channel_name)
+                post_agent_id = self.huginn_client.create_post_agent(channel_name)
+                
+                # Link agents
+                self.huginn_client.link_agents(rss_agent_id, post_agent_id)
+                
+                # Start agents
+                self.huginn_client.start_agent(rss_agent_id)
+                
+                # Update channel with agent IDs
+                channel.huginn_rss_agent_id = rss_agent_id
+                channel.huginn_post_agent_id = post_agent_id
+                self.channel_repository.update(channel)
+                
+                logger.info(
+                    "Successfully created Huginn agents",
+                    extra={
+                        "channel_name": channel_name,
+                        "rss_agent_id": rss_agent_id,
+                        "post_agent_id": post_agent_id
+                    }
+                )
+            except Exception as e:
+                # Cleanup on failure
+                self.channel_repository.delete(channel)
+                logger.error(f"Failed to create Huginn agents: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to setup channel monitoring: {str(e)}"
+                )
         
         # Check if subscription already exists
         existing_sub = self.subscription_repository.get_by_channel_and_callback(
