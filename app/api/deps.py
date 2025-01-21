@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.repositories.subscription_repository import SubscriptionRepository
 from app.services.channel_service import ChannelService
 from app.services.webhook_service import WebhookService
 
@@ -25,3 +26,6 @@ async def get_webhook_service(
 ) -> AsyncGenerator[WebhookService, None]:
     async with WebhookService(db) as service:
         yield service
+
+def get_subscription_repository(db: Session = Depends(get_db)) -> SubscriptionRepository:
+    return SubscriptionRepository(db)

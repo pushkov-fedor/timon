@@ -92,7 +92,7 @@ class HuginnClient:
             "agent": {
                 "type": "Agents::RssAgent",
                 "name": f"RSS Monitor - {channel_username}",
-                "schedule": "every_1h",
+                "schedule": "every_1m",
                 "options": {
                     "expected_update_period_in_days": "2",
                     "url": [f"http://rsshub:1200/telegram/channel/{channel_username}"],
