@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.channel import Channel
+from app.models.subscription import Subscription
 from tests.factories.post import create_test_post_webhook
 
 
@@ -13,9 +14,17 @@ def test_process_webhook(client: TestClient, db_session: Session):
     # Create test channel in database
     channel = Channel(
         channel_name="test_channel",
-        callback_url="http://callback.com/webhook"
+        is_monitored=True
     )
     db_session.add(channel)
+    db_session.flush()
+    
+    # Create subscription
+    subscription = Subscription(
+        channel_id=channel.id,
+        callback_url="http://callback.com/webhook"
+    )
+    db_session.add(subscription)
     db_session.commit()
 
     # Create test post data
@@ -24,22 +33,17 @@ def test_process_webhook(client: TestClient, db_session: Session):
         title="Test Post"
     )
 
-    # Mock the httpx.AsyncClient directly
     with patch('httpx.AsyncClient.post') as mock_post:
-        # Configure mock
         mock_post.return_value = AsyncMock(
             status_code=200,
             json=AsyncMock(return_value={"status": "success"})
         )
 
-        # Make request
         response = client.post("/webhook/rss", json=post_data.model_dump())
         
-        # Verify response
         assert response.status_code == 200
         assert response.json() == {"status": "success"}
         
-        # Verify HTTP client was called
         mock_post.assert_called_once()
 
 
