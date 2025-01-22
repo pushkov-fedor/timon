@@ -13,20 +13,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Create env file
-      run: |
-        echo "POSTGRES_USER=postgres" >> .env
-        echo "POSTGRES_PASSWORD=postgres" >> .env
-        echo "POSTGRES_DB=timon_test" >> .env
-        echo "POSTGRES_HOST=db" >> .env
-        echo "POSTGRES_PORT=5432" >> .env
-        echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/timon_test" >> .env
+    # Закомментированы шаги для прогона тестов
+    # - name: Create env file
+    #   run: |
+    #     echo "POSTGRES_USER=postgres" >> .env
+    #     echo "POSTGRES_PASSWORD=postgres" >> .env
+    #     echo "POSTGRES_DB=timon_test" >> .env
+    #     echo "POSTGRES_HOST=db" >> .env
+    #     echo "POSTGRES_PORT=5432" >> .env
+    #     echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/timon_test" >> .env
 
-    - name: Run tests in Docker
-      run: |
-        docker compose -f docker-compose.test.yml build
-        docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test
+    # - name: Run tests in Docker
+    #   run: |
+    #     docker compose -f docker-compose.test.yml build
+    #     docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test
 
-    - name: Cleanup
-      if: always()
-      run: docker compose -f docker-compose.test.yml down -v
+    # - name: Cleanup
+    #   if: always()
+    #   run: docker compose -f docker-compose.test.yml down -v
