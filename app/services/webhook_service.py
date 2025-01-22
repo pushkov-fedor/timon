@@ -84,15 +84,60 @@ class WebhookService:
             # Конвертируем Pydantic модель в dict и преобразуем HttpUrl в строки
             post_data = {
                 "title": post.title,
-                "link": str(post.link),  # Convert HttpUrl to string
+                "link": str(post.link),
                 "guid": post.guid,
                 "published_at": post.published_at.isoformat(),
                 "text": post.text,
-                "links": [str(link) for link in post.links],  # Convert list of HttpUrl to strings
-                "images": [str(image) for image in post.images],  # Convert list of HttpUrl to strings
-                "videos": [str(video) for video in post.videos],  # Convert list of HttpUrl to strings
+                "links": [str(link) for link in post.links],
+                "images": [str(image) for image in post.images],
+                "videos": [str(video) for video in post.videos],
                 "raw_content": post.raw_content
             }
+
+            # Логируем данные перед отправкой
+            logger.info(
+                "Preparing to send callback",
+                extra={
+                    "callback_url": callback_url,
+                    "post_data": {
+                        "title": post_data["title"],
+                        "link": post_data["link"],
+                        "guid": post_data["guid"],
+                        "published_at": post_data["published_at"],
+                        "text_length": len(post_data["text"]),
+                        "links_count": len(post_data["links"]),
+                        "images_count": len(post_data["images"]),
+                        "videos_count": len(post_data["videos"]),
+                        "raw_content_length": len(post_data["raw_content"])
+                    }
+                }
+            )
+
+            # Детальное логирование первых элементов массивов
+            if post_data["links"]:
+                logger.debug(
+                    "Sample links",
+                    extra={
+                        "first_links": post_data["links"][:3],
+                        "total_links": len(post_data["links"])
+                    }
+                )
+            if post_data["images"]:
+                logger.debug(
+                    "Sample images",
+                    extra={
+                        "first_images": post_data["images"][:3],
+                        "total_images": len(post_data["images"])
+                    }
+                )
+            if post_data["videos"]:
+                logger.debug(
+                    "Sample videos",
+                    extra={
+                        "first_videos": post_data["videos"][:3],
+                        "total_videos": len(post_data["videos"])
+                    }
+                )
 
             response = await self.http_client.post(
                 url=callback_url,
@@ -100,25 +145,53 @@ class WebhookService:
                 headers={"Content-Type": "application/json"}
             )
             
-            if response.status_code >= 400:
-                logger.error(f"Callback request failed with status {response.status_code}")
-                logger.error(f"Response content: {response.text}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"Callback request failed: {response.text}"
+            if response.status_code < 400:
+                logger.info(
+                    "Successfully sent callback",
+                    extra={
+                        "callback_url": callback_url,
+                        "status_code": response.status_code,
+                        "response_headers": dict(response.headers)
+                    }
                 )
-                
-        except (httpx.ConnectError, httpx.ReadTimeout) as e:
-            # Только логируем ошибки подключения, не поднимаем исключение
-            logger.error(f"Error sending callback request: {str(e)}")
-            logger.error("Failed to send to callback")
+                return
+
+            # Логируем ошибку с деталями запроса и ответа
+            logger.error(
+                "Callback request failed",
+                extra={
+                    "callback_url": callback_url,
+                    "status_code": response.status_code,
+                    "response_content": response.text,
+                    "request_headers": dict(response.request.headers),
+                    "response_headers": dict(response.headers),
+                    "post_guid": post_data["guid"]
+                }
+            )
+            return
+
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.HTTPError) as e:
+            logger.error(
+                "Connection error while sending callback",
+                extra={
+                    "callback_url": callback_url,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "post_guid": post_data["guid"]
+                }
+            )
             return
         except Exception as e:
-            logger.error(f"Error sending callback request: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to send callback request: {str(e)}"
+            logger.error(
+                "Unexpected error while sending callback",
+                extra={
+                    "callback_url": callback_url,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "post_guid": post_data["guid"]
+                }
             )
+            return
 
     async def process_post(self, post: PostWebhook) -> None:
         """Process incoming post from Huginn"""
@@ -215,6 +288,8 @@ class WebhookService:
                     await self._send_to_callback(subscription.callback_url, parsed_post)
                     successful_deliveries += 1
                 except Exception as e:
+                    # Здесь мы уже не должны получать исключения из _send_to_callback,
+                    # но на всякий случай обрабатываем их
                     failed_deliveries += 1
                     logger.error(
                         "Failed to send to callback",
@@ -222,10 +297,9 @@ class WebhookService:
                             "subscription_id": subscription.id,
                             "callback_url": subscription.callback_url,
                             "error": str(e)
-                        },
-                        exc_info=True
+                        }
                     )
-                    continue
+                    continue  # Продолжаем с следующей подпиской
 
             processing_time = time.time() - start_time
             logger.info(
